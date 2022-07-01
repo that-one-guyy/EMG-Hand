@@ -1,4 +1,3 @@
-
   #include <Servo.h>  
   #include <Wire.h>
   #define GRIPPER_STATE_BUTTON_PIN 4          //pin for button that switches defult state of the gripper (opened/closed)
@@ -11,7 +10,6 @@
   #define MINIMUM_SERVO_UPDATE_TIME 4000000   //update servo position every 4s
   
   Servo Gripper;                              //servo for gripper
-  Servo Thumb;
   byte ledPins[] = {8, 9, 10, 11, 12, 13};    //pins for LEDs in LED bar
   
   //EMG saturation values (when EMG reaches this value the gripper will be fully opened/closed)
@@ -20,6 +18,7 @@
   
   int emgSaturationValue = 0;                 //selected sensitivity/EMG saturation value
   int analogReadings;                         //measured value for EMG
+  byte dataSend[2];                           //temporary array for sending analog values
   byte ledbarHeight = 0;                      //temporary variable for led bar height
   
   unsigned long oldTime = 0;                  //timestamp of last servo angle update (ms)
@@ -49,12 +48,13 @@
   //-----------------------------------------------------------------------------------
   //   Setup servo, inputs and outputs
   // ----------------------------------------------------------------------------------
-  void setup() {    
+  void setup() {
+    Serial.begin(9600);
     Wire.begin(9);
     Wire.onRequest(requestEvent);
     //init servo
-    Gripper.attach(SERVO_PIN); 
-    Thumb.attach(5);
+    Gripper.attach(SERVO_PIN);
+    
     //init button pins to input   
     pinMode(GRIPPER_STATE_BUTTON_PIN, INPUT);                             
     pinMode(SENSITIVITY_BUTTON_PIN, INPUT);                            
@@ -114,7 +114,7 @@
             {  
               delay(10);
             }       
-            //whait a bit more so that LED light feedback is always visible
+            //wait a bit more so that LED light feedback is always visible
             delay(100);        
         }
  
@@ -175,11 +175,13 @@
         {
           digitalWrite(ledPins[k], HIGH);
         }
-               analogReadings = constrain(analogReadings, 40, emgSaturationValue);
+        analogReadings = constrain(analogReadings, 40, emgSaturationValue);
   
 }
 
 
 void requestEvent(){
-  Wire.write(analogReadings);
+  dataSend[0] = (analogReadings >> 8) & 0xFF;
+  dataSend[1] = analogReadings & 0xFF;
+  Wire.write(dataSend,2);
 }
